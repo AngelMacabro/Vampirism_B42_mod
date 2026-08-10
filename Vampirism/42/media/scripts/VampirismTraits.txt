@@ -1,0 +1,14 @@
+module Vampirism
+{
+    character_trait_definition vampirism:vampire
+    {
+        CharacterTrait = vampirism:vampire,
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        Cost = 1,
+        UIName = UI_trait_vampire,
+        UIDescription = UI_trait_vampire_desc,
+        Icon = vampirism_vampire,
+        XPBoosts = Strength=3,
+    }
+}
