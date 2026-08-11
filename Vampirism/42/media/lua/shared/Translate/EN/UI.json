@@ -1,6 +1,6 @@
 {
     "UI_trait_vampire": "Vampire",
-    "UI_trait_vampire_desc": "A creature of the night. Grants +3 Strength.",
+    "UI_trait_vampire_desc": "You are a creature of the night. The sun burns your skin.",
     "UI_Vampirism_SunWarning": "The sunlight burns my skin!",
     "UI_Vampirism_SunProtected": "I am protected from the sunlight."
 }

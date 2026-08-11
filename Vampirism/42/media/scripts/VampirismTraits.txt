@@ -8,7 +8,8 @@ module Vampirism
         Cost = 1,
         UIName = UI_trait_vampire,
         UIDescription = UI_trait_vampire_desc,
-        Icon = vampirism_vampire,
+        Icon = media/textures/trait_vampire.png,
         XPBoosts = Strength=3,
     }
 }
+

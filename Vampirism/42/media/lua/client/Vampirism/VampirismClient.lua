@@ -1,118 +1,315 @@
-require("Vampirism.Vampirism")
+-- VampirismClient.lua
+-- Project Zomboid Build 42.20.2
+-- Cliente visual para el sistema de vampirismo.
 
--- ESTADO VISUAL DEL CLIENTE
-Vampirism.sunDamageOverlayAlpha = 0
-Vampirism.sunDamageOverlayActive = false
-Vampirism.warningAlpha = 0
+-- Si tu shared ya se carga automáticamente, puedes quitar el require.
+-- En PZ normalmente se usa ruta con "/", no con ".".
+require("Vampirism/Vampirism")
 
--- Estado recibido desde el servidor
+Vampirism = Vampirism or {}
+
+------------------------------------------------------------
+-- ESTADO VISUAL
+------------------------------------------------------------
+
 Vampirism.isReceivingDamage = false
 
--- ACTUALIZACIÓN VISUAL (MIGRADO A ONRENDERTICK)
+Vampirism.sunDamageOverlayAlpha = 0
+Vampirism.warningAlpha = 0
+
+Vampirism.toastText = nil
+Vampirism.toastAlpha = 0
+
+Vampirism.lastRenderMs = nil
+
+------------------------------------------------------------
+-- UTILIDADES
+------------------------------------------------------------
+
+local function Try(fn)
+    if fn == nil then
+        return nil
+    end
+
+    local ok, result = pcall(fn)
+    if ok then
+        return result
+    end
+
+    return nil
+end
+
+local function GetTextSafe(key, fallback)
+    if getText then
+        local ok, txt = pcall(getText, key)
+        if ok and txt and txt ~= "" and txt ~= key then
+            return txt
+        end
+    end
+
+    return fallback or key
+end
+
+local function GetLocalPlayer()
+    if getPlayer then
+        local ok, player = pcall(getPlayer)
+        if ok and player then
+            return player
+        end
+    end
+
+    if getSpecificPlayer then
+        local ok, player = pcall(getSpecificPlayer, 0)
+        if ok and player then
+            return player
+        end
+    end
+
+    return nil
+end
+
+local function GetTimeMs()
+    if getTimestampMs then
+        local ok, ms = pcall(getTimestampMs)
+        if ok and ms then
+            return ms
+        end
+    end
+
+    if os and os.clock then
+        local ok, sec = pcall(os.clock)
+        if ok and sec then
+            return sec * 1000
+        end
+    end
+
+    return nil
+end
+
+------------------------------------------------------------
+-- VALIDACIÓN DE COMANDOS
+------------------------------------------------------------
+
+local function IsCommandForLocalPlayer(args)
+    -- Si el servidor usa sendServerCommand(player, ...),
+    -- el comando ya está dirigido a este cliente.
+    --
+    -- Si args.playerID no existe, se acepta.
+    if not args or args.playerID == nil then
+        return true
+    end
+
+    local localPlayer = GetLocalPlayer()
+
+    -- Si todavía no hay jugador local, aceptamos el estado igualmente.
+    -- Puede ocurrir durante carga/conexión.
+    if not localPlayer then
+        return true
+    end
+
+    local myOnlineID = Try(function()
+        return localPlayer.getOnlineID and localPlayer:getOnlineID() or nil
+    end)
+
+    if myOnlineID == nil then
+        return true
+    end
+
+    -- Singleplayer/host local suele usar -1.
+    if args.playerID == -1 and myOnlineID == -1 then
+        return true
+    end
+
+    return args.playerID == myOnlineID
+end
+
+------------------------------------------------------------
+-- ACTUALIZACIÓN VISUAL
+------------------------------------------------------------
+
 function Vampirism.UpdateSunDamageVisuals()
+    local now = GetTimeMs()
+    local dt = 1 / 60
+
+    if now and Vampirism.lastRenderMs then
+        local diff = (now - Vampirism.lastRenderMs) / 1000
+
+        -- Limitamos dt para evitar saltos enormes si hubo lag o carga.
+        if diff > 0 and diff < 0.25 then
+            dt = diff
+        end
+    end
+
+    if now then
+        Vampirism.lastRenderMs = now
+    end
+
     if Vampirism.isReceivingDamage then
-        Vampirism.sunDamageOverlayActive = true
+        -- Subida gradual.
+        -- 0.6 por segundo => tarda ~1 segundo en llegar a 0.6.
+        Vampirism.sunDamageOverlayAlpha = math.min(
+            0.6,
+            Vampirism.sunDamageOverlayAlpha + (0.6 * dt)
+        )
 
-        -- Incrementar gradualmente la intensidad del efecto (Ajustado para RenderTick)
-        Vampirism.sunDamageOverlayAlpha = math.min(0.6, Vampirism.sunDamageOverlayAlpha + 0.01)
-        Vampirism.warningAlpha = math.min(1.0, Vampirism.warningAlpha + 0.02)
+        -- 1.2 por segundo => tarda ~0.83 segundos en llegar a 1.0.
+        Vampirism.warningAlpha = math.min(
+            1.0,
+            Vampirism.warningAlpha + (1.2 * dt)
+        )
     else
-        Vampirism.sunDamageOverlayActive = false
+        -- Bajada gradual.
+        Vampirism.sunDamageOverlayAlpha = math.max(
+            0.0,
+            Vampirism.sunDamageOverlayAlpha - (0.4 * dt)
+        )
 
-        -- Reducir gradualmente la intensidad
-        Vampirism.sunDamageOverlayAlpha = math.max(0.0, Vampirism.sunDamageOverlayAlpha - 0.005)
-        Vampirism.warningAlpha = math.max(0.0, Vampirism.warningAlpha - 0.01)
+        Vampirism.warningAlpha = math.max(
+            0.0,
+            Vampirism.warningAlpha - (0.8 * dt)
+        )
+    end
+
+    -- Fade out de mensajes toast.
+    if Vampirism.toastAlpha > 0 then
+        Vampirism.toastAlpha = math.max(
+            0.0,
+            Vampirism.toastAlpha - (0.5 * dt)
+        )
     end
 end
 
--- Se utiliza OnRenderTick para animaciones visuales fluidas e independientes de los ticks lógicos
 Events.OnRenderTick.Add(function()
     Vampirism.UpdateSunDamageVisuals()
 end)
 
--- SINCRONIZACIÓN SERVER -> CLIENT (COMPATIBLE MULTIJUGADOR)
+------------------------------------------------------------
+-- COMANDOS SERVER -> CLIENT
+------------------------------------------------------------
+
 Events.OnServerCommand.Add(function(module, command, args)
-    -- Ignorar comandos de otros mods
-    if module ~= "Vampirism" then return end
-    if not args then return end
-
-    -- Obtener el jugador local de esta instancia del cliente
-    local localPlayer = getPlayer()
-    if not localPlayer then return end
-
-    -- IMPORTANTE: Validamos que el comando sea específicamente para nuestro ID en línea
-    local targetPlayerID = args.playerID
-    local myOnlineID = localPlayer.getOnlineID and localPlayer:getOnlineID() or -1
-
-    if targetPlayerID ~= myOnlineID then
-        return -- El comando es para otro jugador en el servidor, lo ignoramos.
+    if module ~= "Vampirism" then
+        return
     end
 
-    -- El servidor indica que comenzó el daño solar
+    args = args or {}
+
+    if not IsCommandForLocalPlayer(args) then
+        return
+    end
+
     if command == "SunDamageStart" then
         Vampirism.isReceivingDamage = true
         return
     end
 
-    -- El servidor indica que terminó el daño solar
     if command == "SunDamageStop" then
         Vampirism.isReceivingDamage = false
         return
     end
+
+    if command == "ShowMessage" then
+        local localPlayer = GetLocalPlayer()
+
+        if args.text and args.text ~= "" then
+            -- Si HaloTextHelper funciona en esta build, úsalo.
+            if localPlayer and HaloTextHelper and HaloTextHelper.addText then
+                pcall(
+                    HaloTextHelper.addText,
+                    localPlayer,
+                    args.text,
+                    args.r or 255,
+                    args.g or 255,
+                    args.b or 255
+                )
+            else
+                -- Fallback: mensaje simple dibujado por este mismo cliente.
+                Vampirism.toastText = args.text
+                Vampirism.toastAlpha = 1.0
+            end
+        end
+
+        return
+    end
 end)
 
--- RENDERIZADO DE LA INTERFAZ
-local renderEvent = Events.OnPostUIDraw
+------------------------------------------------------------
+-- RENDERIZADO DE INTERFAZ
+------------------------------------------------------------
 
-if renderEvent then
-    renderEvent.Add(function()
-        -- No dibujar nada si ambos efectos están prácticamente desactivados
-        if Vampirism.sunDamageOverlayAlpha <= 0.01 and Vampirism.warningAlpha <= 0.01 then
+if Events.OnPostUIDraw then
+    Events.OnPostUIDraw.Add(function()
+        local shouldDrawOverlay = Vampirism.sunDamageOverlayAlpha > 0.01
+        local shouldDrawWarning = Vampirism.warningAlpha > 0.01
+        local shouldDrawToast = Vampirism.toastAlpha > 0.01 and Vampirism.toastText ~= nil
+
+        if not shouldDrawOverlay and not shouldDrawWarning and not shouldDrawToast then
             return
         end
 
-        local core = getCore()
-        if not core then return end
+        local core = Try(getCore)
+
+        if not core or not core.getScreenWidth or not core.getScreenHeight then
+            return
+        end
 
         local width = core:getScreenWidth()
         local height = core:getScreenHeight()
 
-        -- RECTÁNGULO DE DAÑO SOLAR (OVERLAY DE PANTALLA ROJA)
-        -- Usamos las variables que inicializaste arriba para pintar la pantalla de rojo translúcido
-        if Vampirism.sunDamageOverlayAlpha > 0.01 then
-            -- Parámetros: x, y, ancho, alto, r, g, b, a
+        ------------------------------------------------------
+        -- OVERLAY ROJO
+        ------------------------------------------------------
+
+        if shouldDrawOverlay and ISUIElement and ISUIElement.drawRect then
             ISUIElement.drawRect(
-                0, 
-                0, 
-                width, 
-                height, 
-                0.5,                             -- Rojo moderado (0.5)
-                0.1,                             -- Un toque leve de verde
-                0.0,                             -- Sin azul
-                Vampirism.sunDamageOverlayAlpha  -- Alpha dinámico
+                0,
+                0,
+                width,
+                height,
+                0.55,                           -- R
+                0.05,                           -- G
+                0.0,                            -- B
+                Vampirism.sunDamageOverlayAlpha -- A
             )
         end
 
-        -- Texto de advertencia centrado
-        if Vampirism.warningAlpha > 0.01 then
-            local warningText = getText("UI_Vampirism_SunWarning")
-            local centerX = width / 2
-            local y = height - 150 -- Subido ligeramente para evitar colisiones con hotbars inferiores
+        ------------------------------------------------------
+        -- TEXTOS
+        ------------------------------------------------------
 
-            if getTextManager() and getTextManager().DrawStringCentre then
-                getTextManager():DrawStringCentre(
-                    centerX,
-                    y,
-                    warningText,
-                    1.0,                    -- R
-                    0.3,                    -- G (Hacerlo más anaranjado/rojizo)
-                    0.1,                    -- B
-                    Vampirism.warningAlpha  -- Alpha dinámico
-                )
-            end
+        local textManager = Try(getTextManager)
+
+        if shouldDrawWarning and textManager and textManager.DrawStringCentre then
+            local warningText = GetTextSafe(
+                "UI_Vampirism_SunWarning",
+                "The sun is burning you!"
+            )
+
+            textManager:DrawStringCentre(
+                math.floor(width / 2),
+                height - 150,
+                warningText,
+                1.0,
+                0.35,
+                0.1,
+                Vampirism.warningAlpha
+            )
+        end
+
+        if shouldDrawToast and textManager and textManager.DrawStringCentre then
+            textManager:DrawStringCentre(
+                math.floor(width / 2),
+                height - 190,
+                Vampirism.toastText,
+                1.0,
+                1.0,
+                1.0,
+                Vampirism.toastAlpha
+            )
         end
     end)
+else
+    print("[Vampirism] WARNING: Events.OnPostUIDraw is not available.")
 end
 
--- INICIALIZACIÓN
 print("[Vampirism] client Lua loaded successfully.")

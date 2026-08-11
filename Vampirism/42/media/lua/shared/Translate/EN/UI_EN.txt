@@ -1,4 +1,6 @@
 UI_EN = {
     UI_trait_vampire = "Vampire",
-    UI_trait_vampire_desc = "You possess an unholy thirst for blood.",
+    UI_trait_vampire_desc = "You are a creature of the night. The sun burns your skin.",
+    UI_Vampirism_SunWarning = "The sun is burning you!",
+    UI_Vampirism_SunProtected = "You are safe from the sun.",
 }
