@@ -407,6 +407,10 @@ function Vampirism.ApplySunDamage(player)
 
     local damageAmount = tonumber(Vampirism.SUN_DAMAGE_AMOUNT) or 1
     print("[Vampirism DEBUG] BodyDamage = " .. tostring(body))
+    print("[Vampirism DEBUG] BodyDamage.AddGeneralHealth = " .. tostring(body.AddGeneralHealth))
+    print("[Vampirism DEBUG] BodyDamage.addGeneralHealth = " .. tostring(body.addGeneralHealth))
+    print("[Vampirism DEBUG] BodyDamage.ReduceGeneralHealth = " .. tostring(body.ReduceGeneralHealth))
+    print("[Vampirism DEBUG] BodyDamage.reduceGeneralHealth = " .. tostring(body.reduceGeneralHealth))  
     print("[Vampirism DEBUG] Damage amount = " .. tostring(damageAmount))
 
     if body then
