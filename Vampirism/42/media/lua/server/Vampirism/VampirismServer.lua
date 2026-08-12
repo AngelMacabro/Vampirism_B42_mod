@@ -11,32 +11,7 @@ Vampirism.PlayerState = Vampirism.PlayerState or {}
 Vampirism.currentTick = Vampirism.currentTick or 0
 Vampirism.lastDamageTick = Vampirism.lastDamageTick or 0
 
-------------------------------------------------------------
 -- UTILIDADES
-------------------------------------------------------------
-
-local function GetShortId(id)
-    if type(id) ~= "string" then
-        return nil
-    end
-
-    -- Soporta:
-    -- "mod.trait"
-    -- "mod:trait"
-    return id:match("([^%.:]+)$")
-end
-
-local function ToTraitString(value)
-    if value == nil then
-        return nil
-    end
-
-    if type(value) == "string" then
-        return value
-    end
-
-    return tostring(value)
-end
 
 local function Try(fn)
     if fn == nil then
@@ -139,9 +114,7 @@ function Vampirism.SendPlayerMessage(player, text, r, g, b)
     })
 end
 
-------------------------------------------------------------
 -- ESTADO POR JUGADOR
-------------------------------------------------------------
 
 local function GetPlayerKey(player)
     if not player then
@@ -192,9 +165,7 @@ local function GetPlayerState(player)
     return Vampirism.PlayerState[key]
 end
 
-------------------------------------------------------------
 -- OBTENER JUGADORES
-------------------------------------------------------------
 
 
 local function GetAllPlayers()
@@ -232,45 +203,10 @@ local function GetAllPlayers()
     return list
 end
 
-------------------------------------------------------------
+-- ============================================================
 -- TRAITS
-------------------------------------------------------------
-
-function Vampirism.GetTraitObject(traitId)
-    if not traitId then
-        return nil
-    end
-
-    if CharacterTrait and CharacterTrait.get then
-        -- Intento con ResourceLocation, si existe en esta build.
-        if ResourceLocation and ResourceLocation.FromString then
-            local resLocation = Try(function()
-                return ResourceLocation.FromString(traitId)
-            end)
-
-            if resLocation then
-                local trait = Try(function()
-                    return CharacterTrait.get(resLocation)
-                end)
-
-                if trait then
-                    return trait
-                end
-            end
-        end
-
-        -- Intento directo con string.
-        local trait = Try(function()
-            return CharacterTrait.get(traitId)
-        end)
-
-        if trait then
-            return trait
-        end
-    end
-
-    return nil
-end
+-- Build 42.20.x
+-- ============================================================
 
 function Vampirism.HasVampireTrait(player)
     if not player then
@@ -278,97 +214,89 @@ function Vampirism.HasVampireTrait(player)
     end
 
     local traitId = Vampirism.VAMPIRE_TRAIT
+
     if not traitId then
         return false
     end
 
-    local traitObj = Vampirism.GetTraitObject(traitId)
-
-    -- Intento con HasTrait (mayúscula, estilo PZ clásico).
-    if player.HasTrait then
-        if traitObj then
-            local ok, has = pcall(player.HasTrait, player, traitObj)
-            if ok and has then
-                return true
-            end
-        end
-
-        local ok, has = pcall(player.HasTrait, player, traitId)
-        if ok and has then
-            return true
-        end
+    if not ResourceLocation or not ResourceLocation.of then
+        print("[Vampirism] ERROR: ResourceLocation.of is unavailable")
+        return false
     end
 
-    -- Intento con hasTrait (por si Build 42 usa lower camel case).
-    if player.hasTrait then
-        if traitObj then
-            local ok, has = pcall(player.hasTrait, player, traitObj)
-            if ok and has then
-                return true
-            end
-        end
-
-        local ok, has = pcall(player.hasTrait, player, traitId)
-        if ok and has then
-            return true
-        end
+    if not CharacterTrait or not CharacterTrait.get then
+        print("[Vampirism] ERROR: CharacterTrait.get is unavailable")
+        return false
     end
 
-        -- Fallback: recorrer traits.
-    local traits = Try(function()
-        return player.getTraits and player:getTraits() or nil
+    -- Build 42.20.2:
+    -- CharacterTrait.get() requiere un ResourceLocation.
+    local resourceLocation = nil
+
+    local okLocation, resultLocation = pcall(function()
+        return ResourceLocation.of(traitId)
     end)
 
-    if traits and traits.size then
-        for i = 0, traits:size() - 1 do
-            local entry = traits:get(i)
-            local entryId = nil
-
-            if type(entry) == "string" then
-                entryId = entry
-            elseif entry then
-                entryId = Try(function()
-                    return entry.getId and entry:getId() or nil
-                end)
-
-                if not entryId then
-                    entryId = Try(function()
-                        return entry.getName and entry:getName() or nil
-                    end)
-                end
-
-                if not entryId then
-                    entryId = tostring(entry)
-                end
-            end
-
-            entryId = ToTraitString(entryId)
-
-            -- Comparación exacta.
-            if entryId == traitId then
-                return true
-            end
-
-            -- Comparación flexible por nombre corto.
-            -- Ejemplo:
-            -- "vampirism:vampire" matchea con "vampire".
-            --
-            -- Si esto te causa falsos positivos, elimina este bloque.
-            local shortEntry = GetShortId(entryId)
-            local shortTrait = GetShortId(traitId)
-
-            if shortEntry and shortTrait and shortEntry == shortTrait then
-                return true
-            end
-        end
+    if not okLocation or not resultLocation then
+        print(
+            "[Vampirism] ERROR: Could not create ResourceLocation: " ..
+            tostring(traitId)
+        )
+        return false
     end
 
-    return false
+    resourceLocation = resultLocation
+
+    -- Obtener el CharacterTrait registrado.
+    local traitObj = nil
+
+    local okTrait, resultTrait = pcall(function()
+        return CharacterTrait.get(resourceLocation)
+    end)
+
+    if not okTrait then
+        print(
+            "[Vampirism] ERROR: CharacterTrait.get failed: " ..
+            tostring(traitId)
+        )
+        return false
+    end
+
+    traitObj = resultTrait
+
+    if not traitObj then
+        print(
+            "[Vampirism] ERROR: CharacterTrait not registered: " ..
+            tostring(traitId)
+        )
+        return false
+    end
+
+    -- Build 42: hasTrait() utiliza CharacterTrait.
+    if not player.hasTrait then
+        print("[Vampirism] ERROR: player.hasTrait is unavailable")
+        return false
+    end
+
+    local okHasTrait, hasTrait = pcall(function()
+        return player:hasTrait(traitObj)
+    end)
+
+    if not okHasTrait then
+        print(
+            "[Vampirism] ERROR: player:hasTrait() failed for " ..
+            tostring(traitId)
+        )
+        return false
+    end
+    print(
+        "[Vampirism DEBUG] Vampire trait = " ..
+        tostring(hasTrait)
+    )
+    return hasTrait == true
 end
 
-------------------------------------------------------------
 -- CONDICIONES
-------------------------------------------------------------
 
 function Vampirism.IsOutdoors(player)
     if not player then
@@ -444,11 +372,10 @@ function Vampirism.IsDaytime()
     return false
 end
 
-------------------------------------------------------------
 -- DAÑO SOLAR
-------------------------------------------------------------
 
 function Vampirism.ApplySunDamage(player)
+    print("[Vampirism DEBUG] >>> APPLY SUN DAMAGE <<<")
     if not player then
         return
     end
@@ -479,6 +406,8 @@ function Vampirism.ApplySunDamage(player)
     end)
 
     local damageAmount = tonumber(Vampirism.SUN_DAMAGE_AMOUNT) or 1
+    print("[Vampirism DEBUG] BodyDamage = " .. tostring(body))
+    print("[Vampirism DEBUG] Damage amount = " .. tostring(damageAmount))
 
     if body then
         if body.AddGeneralHealth then
@@ -559,6 +488,7 @@ function Vampirism.StopSunDamage(player, silent)
 end
 
 function Vampirism.EvaluateSunDamageForPlayer(player)
+    
     if not player then
         return
     end
@@ -571,6 +501,10 @@ function Vampirism.EvaluateSunDamageForPlayer(player)
         Vampirism.StopSunDamage(player, true)
         return
     end
+
+    print("[Vampirism DEBUG] Trait = " .. tostring(Vampirism.HasVampireTrait(player)))
+    print("[Vampirism DEBUG] Outdoors = " .. tostring(Vampirism.IsOutdoors(player)))
+    print("[Vampirism DEBUG] Daytime = " .. tostring(Vampirism.IsDaytime()))
 
     if not Vampirism.HasVampireTrait(player) then
         Vampirism.StopSunDamage(player)
@@ -605,9 +539,7 @@ function Vampirism.CheckSunDamage()
     end
 end
 
-------------------------------------------------------------
 -- TICK PRINCIPAL
-------------------------------------------------------------
 
 Events.OnTick.Add(function()
     if not ShouldRunServerLogic() then
@@ -627,9 +559,7 @@ Events.OnTick.Add(function()
     Vampirism.CheckSunDamage()
 end)
 
-------------------------------------------------------------
 -- LIMPIEZA DE ESTADO
-------------------------------------------------------------
 
 if Events.OnPlayerDeath then
     Events.OnPlayerDeath.Add(function(player)

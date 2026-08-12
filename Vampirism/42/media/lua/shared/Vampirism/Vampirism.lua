@@ -8,6 +8,7 @@ Vampirism.ID = "Vampirism"
 -- ID exacto del trait vampiro.
 -- Asegúrate de que este ID coincida con el trait registrado en Build 42.
 Vampirism.VAMPIRE_TRAIT = "vampirism:vampire"
+Vampirism.DAMNED_TRAIT = "vampirism:damned"
 
 ------------------------------------------------------------
 -- CONFIGURACIÓN DE DAÑO SOLAR

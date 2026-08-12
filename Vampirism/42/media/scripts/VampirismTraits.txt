@@ -5,11 +5,25 @@ module Vampirism
         CharacterTrait = vampirism:vampire,
         IsProfessionTrait = false,
         DisabledInMultiplayer = false,
-        Cost = 1,
+        Cost = 5,
         UIName = UI_trait_vampire,
         UIDescription = UI_trait_vampire_desc,
         Icon = media/textures/trait_vampire.png,
         XPBoosts = Strength=3,
+        GrantedTraits = vampirism:damned, base:NightVision,
+    }
+
+    character_trait_definition vampirism:damned
+    {
+        CharacterTrait = vampirism:damned,
+        IsProfessionTrait = false,
+        DisabledInMultiplayer = false,
+        Cost = 0,
+        UIName = UI_trait_damned,
+        UIDescription = UI_trait_damned_desc,
+        Icon = media/textures/trait_damned.png,
     }
 }
+
+
 
