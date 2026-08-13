@@ -375,7 +375,6 @@ end
 -- DAÑO SOLAR
 
 function Vampirism.ApplySunDamage(player)
-    print("[Vampirism DEBUG] >>> APPLY SUN DAMAGE <<<")
     if not player then
         return
     end
@@ -390,72 +389,64 @@ function Vampirism.ApplySunDamage(player)
     end
 
     local state = GetPlayerState(player)
+
     if not state then
         return
     end
 
-    -- Solo avisamos al cliente una vez cuando empieza el quemado.
     if not state.burning then
         state.burning = true
         SendToClient(player, "SunDamageStart", {})
     end
 
-    -- Salud.
     local body = Try(function()
         return player.getBodyDamage and player:getBodyDamage() or nil
     end)
 
-    local damageAmount = tonumber(Vampirism.SUN_DAMAGE_AMOUNT) or 1
-    print("[Vampirism DEBUG] BodyDamage = " .. tostring(body))
-    print("[Vampirism DEBUG] BodyDamage.AddGeneralHealth = " .. tostring(body.AddGeneralHealth))
-    print("[Vampirism DEBUG] BodyDamage.addGeneralHealth = " .. tostring(body.addGeneralHealth))
-    print("[Vampirism DEBUG] BodyDamage.ReduceGeneralHealth = " .. tostring(body.ReduceGeneralHealth))
-    print("[Vampirism DEBUG] BodyDamage.reduceGeneralHealth = " .. tostring(body.reduceGeneralHealth))  
-    print("[Vampirism DEBUG] Damage amount = " .. tostring(damageAmount))
+    if not body then
+        return
+    end
 
-    if body then
-        if body.AddGeneralHealth then
-            pcall(body.AddGeneralHealth, body, -damageAmount)
-        elseif body.addGeneralHealth then
-            pcall(body.addGeneralHealth, body, -damageAmount)
+    -- DAÑO GENERAL
+    local damageAmount =
+        tonumber(Vampirism.SUN_DAMAGE_AMOUNT) or 1
+
+    if body.ReduceGeneralHealth then
+        pcall(
+            body.ReduceGeneralHealth,
+            body,
+            damageAmount
+        )
+    end
+
+    -- DOLOR SOLAR
+    local painAmount =
+        tonumber(Vampirism.SUN_PAIN_AMOUNT) or 2
+
+    local bodyParts = Try(function()
+        return body.getBodyParts and body:getBodyParts() or nil
+    end)
+
+    if bodyParts and bodyParts.size and bodyParts:size() > 0 then
+        local part = bodyParts:get(0)
+
+        if part and part.setAdditionalPain then
+            pcall(
+                part.setAdditionalPain,
+                part,
+                painAmount
+            )
         end
     end
 
-    -- Dolor.
-    local painAmount = tonumber(Vampirism.SUN_PAIN_AMOUNT) or 5
-    local painChanged = false
+    -- MENSAJE PERIÓDICO
+    local warningCooldownTicks =
+        (tonumber(Vampirism.SUN_WARNING_COOLDOWN) or 30) * 60
 
-    if body and body.getPain and body.setPain then
-        local pain = Try(function()
-            return body:getPain()
-        end)
+    if not state.lastWarningTick
+        or (Vampirism.currentTick - state.lastWarningTick)
+            >= warningCooldownTicks then
 
-        if pain ~= nil then
-            pcall(body.setPain, body, math.min(100, pain + painAmount))
-            painChanged = true
-        end
-    end
-
-    if not painChanged then
-        local stats = Try(function()
-            return player.getStats and player:getStats() or nil
-        end)
-
-        if stats and stats.getPain and stats.setPain then
-            local pain = Try(function()
-                return stats:getPain()
-            end)
-
-            if pain ~= nil then
-                pcall(stats.setPain, stats, math.min(100, pain + painAmount))
-            end
-        end
-    end
-
-    -- Aviso periódico con cooldown.
-    local warningCooldownTicks = (tonumber(Vampirism.SUN_WARNING_COOLDOWN) or 30) * 60
-
-    if not state.lastWarningTick or (Vampirism.currentTick - state.lastWarningTick) >= warningCooldownTicks then
         state.lastWarningTick = Vampirism.currentTick
 
         local msg = GetTextSafe(
@@ -463,7 +454,13 @@ function Vampirism.ApplySunDamage(player)
             "The sun is burning you!"
         )
 
-        Vampirism.SendPlayerMessage(player, msg, 255, 100, 0)
+        Vampirism.SendPlayerMessage(
+            player,
+            msg,
+            255,
+            100,
+            0
+        )
     end
 end
 
