@@ -16,6 +16,15 @@ Vampirism.DAMNED_TRAIT = "vampirism:damned"
 
 Vampirism.SUN_DAMAGE_ENABLED = true
 
+-- Prender fuego físico/visual al personaje al exponerse a la luz solar directa.
+Vampirism.IGNITE_ON_SUN_EXPOSURE = true
+
+-- Extinguir el fuego automáticamente al entrar a la sombra o interiores.
+Vampirism.AUTO_EXTINGUISH_IN_SHADE = true
+
+-- Verificar también el trait 'damned' además de 'vampire'.
+Vampirism.CHECK_DAMNED_TRAIT = true
+
 -- Segundos aproximados entre comprobaciones/ticks de daño.
 Vampirism.SUN_DAMAGE_INTERVAL = 5
 

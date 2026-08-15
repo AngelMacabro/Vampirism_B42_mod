@@ -205,6 +205,15 @@ Events.OnServerCommand.Add(function(module, command, args)
 
     if command == "SunDamageStop" then
         Vampirism.isReceivingDamage = false
+        local localPlayer = GetLocalPlayer()
+        if localPlayer then
+            if localPlayer.StopBurning then
+                pcall(localPlayer.StopBurning, localPlayer)
+            end
+            if localPlayer.setOnFire then
+                pcall(localPlayer.setOnFire, localPlayer, false)
+            end
+        end
         return
     end
 

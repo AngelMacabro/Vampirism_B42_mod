@@ -208,14 +208,8 @@ end
 -- Build 42.20.x
 -- ============================================================
 
-function Vampirism.HasVampireTrait(player)
-    if not player then
-        return false
-    end
-
-    local traitId = Vampirism.VAMPIRE_TRAIT
-
-    if not traitId then
+function Vampirism.HasSpecificTrait(player, traitId)
+    if not player or not traitId then
         return false
     end
 
@@ -229,50 +223,17 @@ function Vampirism.HasVampireTrait(player)
         return false
     end
 
-    -- Build 42.20.2:
-    -- CharacterTrait.get() requiere un ResourceLocation.
-    local resourceLocation = nil
-
-    local okLocation, resultLocation = pcall(function()
-        return ResourceLocation.of(traitId)
-    end)
-
-    if not okLocation or not resultLocation then
-        print(
-            "[Vampirism] ERROR: Could not create ResourceLocation: " ..
-            tostring(traitId)
-        )
+    local okLocation, resourceLocation = pcall(ResourceLocation.of, traitId)
+    if not okLocation or not resourceLocation then
+        print("[Vampirism] ERROR: Could not create ResourceLocation: " .. tostring(traitId))
         return false
     end
 
-    resourceLocation = resultLocation
-
-    -- Obtener el CharacterTrait registrado.
-    local traitObj = nil
-
-    local okTrait, resultTrait = pcall(function()
-        return CharacterTrait.get(resourceLocation)
-    end)
-
-    if not okTrait then
-        print(
-            "[Vampirism] ERROR: CharacterTrait.get failed: " ..
-            tostring(traitId)
-        )
+    local okTrait, traitObj = pcall(CharacterTrait.get, resourceLocation)
+    if not okTrait or not traitObj then
         return false
     end
 
-    traitObj = resultTrait
-
-    if not traitObj then
-        print(
-            "[Vampirism] ERROR: CharacterTrait not registered: " ..
-            tostring(traitId)
-        )
-        return false
-    end
-
-    -- Build 42: hasTrait() utiliza CharacterTrait.
     if not player.hasTrait then
         print("[Vampirism] ERROR: player.hasTrait is unavailable")
         return false
@@ -282,18 +243,33 @@ function Vampirism.HasVampireTrait(player)
         return player:hasTrait(traitObj)
     end)
 
-    if not okHasTrait then
-        print(
-            "[Vampirism] ERROR: player:hasTrait() failed for " ..
-            tostring(traitId)
-        )
+    return okHasTrait and hasTrait == true
+end
+
+function Vampirism.HasDamnedOrVampireTrait(player)
+    if not player then
         return false
     end
-    print(
-        "[Vampirism DEBUG] Vampire trait = " ..
-        tostring(hasTrait)
-    )
-    return hasTrait == true
+
+    -- Comprobar trait maldito (damned)
+    if Vampirism.CHECK_DAMNED_TRAIT and Vampirism.DAMNED_TRAIT then
+        if Vampirism.HasSpecificTrait(player, Vampirism.DAMNED_TRAIT) then
+            return true
+        end
+    end
+
+    -- Comprobar trait de vampiro
+    if Vampirism.VAMPIRE_TRAIT then
+        if Vampirism.HasSpecificTrait(player, Vampirism.VAMPIRE_TRAIT) then
+            return true
+        end
+    end
+
+    return false
+end
+
+function Vampirism.HasVampireTrait(player)
+    return Vampirism.HasDamnedOrVampireTrait(player)
 end
 
 -- CONDICIONES
@@ -372,6 +348,54 @@ function Vampirism.IsDaytime()
     return false
 end
 
+-- FUEGO Y EXTINCIÓN
+
+local function IgniteCharacter(player)
+    if not player then
+        return
+    end
+
+    local isOnFire = Try(function()
+        return player.isOnFire and player:isOnFire() or false
+    end)
+
+    if not isOnFire then
+        if player.SetOnFire then
+            pcall(player.SetOnFire, player)
+        elseif player.setOnFire then
+            pcall(player.setOnFire, player, true)
+        end
+    end
+end
+
+local function ExtinguishCharacter(player)
+    if not player then
+        return
+    end
+
+    -- Detener fuego mediante la API global de servidor
+    if stopFire then
+        pcall(stopFire, player)
+    end
+
+    -- Detener fuego en el objeto del personaje
+    if player.StopBurning then
+        pcall(player.StopBurning, player)
+    end
+
+    if player.setOnFire then
+        pcall(player.setOnFire, player, false)
+    end
+
+    local body = Try(function()
+        return player.getBodyDamage and player:getBodyDamage() or nil
+    end)
+
+    if body and body.setIsOnFire then
+        pcall(body.setIsOnFire, body, false)
+    end
+end
+
 -- DAÑO SOLAR
 
 function Vampirism.ApplySunDamage(player)
@@ -397,6 +421,11 @@ function Vampirism.ApplySunDamage(player)
     if not state.burning then
         state.burning = true
         SendToClient(player, "SunDamageStart", {})
+    end
+
+    -- PRENDER FUEGO FÍSICO AL PERSONAJE
+    if Vampirism.IGNITE_ON_SUN_EXPOSURE then
+        IgniteCharacter(player)
     end
 
     local body = Try(function()
@@ -471,10 +500,24 @@ function Vampirism.StopSunDamage(player, silent)
 
     local state = GetPlayerState(player)
     if not state or not state.burning then
+        -- Asegurar extinción si el jugador aún estuviese en llamas
+        if Vampirism.AUTO_EXTINGUISH_IN_SHADE then
+            local isOnFire = Try(function()
+                return player.isOnFire and player:isOnFire() or false
+            end)
+            if isOnFire then
+                ExtinguishCharacter(player)
+            end
+        end
         return
     end
 
     state.burning = false
+
+    -- EXTINGUIR FUEGO AL ENTRAR A LA SOMBRA / INTERIORES
+    if Vampirism.AUTO_EXTINGUISH_IN_SHADE then
+        ExtinguishCharacter(player)
+    end
 
     SendToClient(player, "SunDamageStop", {})
 
@@ -574,12 +617,16 @@ if Events.OnPlayerDeath then
             state.lastWarningTick = 0
         end
 
+        if Vampirism.AUTO_EXTINGUISH_IN_SHADE then
+            ExtinguishCharacter(player)
+        end
+
         SendToClient(player, "SunDamageStop", {})
     end)
 end
 
-if Events.OnPlayerDisconnect then
-    Events.OnPlayerDisconnect.Add(function(player)
+if Events.OnDisconnect then
+    Events.OnDisconnect.Add(function(player)
         if not player then
             return
         end
@@ -588,6 +635,10 @@ if Events.OnPlayerDisconnect then
         if state then
             state.burning = false
             state.lastWarningTick = 0
+        end
+
+        if Vampirism.AUTO_EXTINGUISH_IN_SHADE then
+            ExtinguishCharacter(player)
         end
     end)
 end
