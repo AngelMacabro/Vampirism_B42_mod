@@ -10,7 +10,7 @@ module Vampirism
         UIDescription = UI_trait_vampire_desc,
         Icon = media/textures/trait_vampire.png,
         XPBoosts = Strength=3,
-        GrantedTraits = vampirism:damned, base:NightVision,
+        GrantedTraits = vampirism:damned, base:nightvision,
     }
 
     character_trait_definition vampirism:damned

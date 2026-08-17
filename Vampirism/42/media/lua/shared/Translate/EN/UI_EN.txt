@@ -1,8 +1,18 @@
 UI_EN = {
     UI_trait_vampire = "Vampire",
     UI_trait_vampire_desc = "You are a creature of the night. The sun burns your skin.",
-    UI_Vampirism_SunWarning = "The sun is burning you!",
-    UI_Vampirism_SunProtected = "You are safe from the sun.",
+    UI_Vampirism_SunWarning = "The sunlight burns my skin!",
+    UI_Vampirism_SunProtected = "I am safe from the sun.",
+    UI_Vampirism_NightEmpowerStart = "The night empowers your body with speed and strength.",
+    UI_Vampirism_NightEmpowerStop = "The morning light fades your nocturnal power.",
     UI_trait_damned = "Damned",
-    UI_trait_damned_desc = "The weight of the sun oppresses you during the day."
+    UI_trait_damned_desc = "The weight of the sun oppresses you during the day.",
+    ContextMenu_VampireFeedOnPlayer = "Bite Neck & Drink Blood",
+    ContextMenu_VampireFeedOnCorpse = "Drink Blood from Corpse",
+    ContextMenu_VampireCorpseDrained = "Corpse Drained of Blood",
+    UI_Vampirism_FeedPlayerSuccess = "You satisfy your thirst with warm, living blood.",
+    UI_Vampirism_BittenByVampire = "A vampire is tearing into your neck!",
+    UI_Vampirism_FeedCorpseSuccess = "The cold, stagnant blood quenches your thirst, but sickens your stomach.",
+    UI_Vampirism_WaterRejected = "Your vampiric body rejects pure water.",
+    UI_Vampirism_FoodRejected = "Your body cannot digest mortal food."
 }

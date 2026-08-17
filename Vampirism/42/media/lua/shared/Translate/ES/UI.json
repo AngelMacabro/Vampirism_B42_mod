@@ -1,0 +1,18 @@
+{
+    "UI_trait_vampire": "Vampiro",
+    "UI_trait_vampire_desc": "Eres una criatura de la noche. El sol quema tu piel y la sangre viva sacia tu sed.",
+    "UI_Vampirism_SunWarning": "¡La luz del sol quema mi piel!",
+    "UI_Vampirism_SunProtected": "Estoy a salvo del sol.",
+    "UI_Vampirism_NightEmpowerStart": "La noche empodera mi cuerpo con velocidad y fuerza.",
+    "UI_Vampirism_NightEmpowerStop": "La luz del alba desvanece mi poder nocturno.",
+    "UI_trait_damned": "Maldito",
+    "UI_trait_damned_desc": "El peso del sol te oprime durante el día.",
+    "ContextMenu_VampireFeedOnPlayer": "Morder cuello y beber sangre",
+    "ContextMenu_VampireFeedOnCorpse": "Beber sangre del cadáver",
+    "ContextMenu_VampireCorpseDrained": "Cadáver drenado de sangre",
+    "UI_Vampirism_FeedPlayerSuccess": "Has saciado tu sed con sangre viva y cálida.",
+    "UI_Vampirism_BittenByVampire": "¡Un vampiro te está desgarrando el cuello!",
+    "UI_Vampirism_FeedCorpseSuccess": "La sangre fría y coagulada calma tu sed, pero revuelve tu estómago.",
+    "UI_Vampirism_WaterRejected": "Tu organismo vampírico rechaza el agua corriente.",
+    "UI_Vampirism_FoodRejected": "Tu organismo vampírico no tolera la comida sólida mortal."
+}
