@@ -13,6 +13,6 @@ UI_ES = {
     UI_Vampirism_FeedPlayerSuccess = "Has saciado tu sed con sangre viva y cálida.",
     UI_Vampirism_BittenByVampire = "¡Un vampiro te está desgarrando el cuello!",
     UI_Vampirism_FeedCorpseSuccess = "La sangre fría y coagulada calma tu sed, pero revuelve tu estómago.",
-    UI_Vampirism_WaterRejected = "Tu organismo vampírico rechaza el agua corriente.",
+    UI_Vampirism_WaterRejected = "Se siente como arena en mi garganta, no puedo beber esto...",
     UI_Vampirism_FoodRejected = "Tu organismo vampírico no tolera la comida sólida mortal."
 }

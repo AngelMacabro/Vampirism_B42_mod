@@ -357,14 +357,20 @@ Events.OnServerCommand.Add(function(module, command, args)
         local localPlayer = GetLocalPlayer()
         local msg = GetTextSafe(
             "UI_Vampirism_WaterRejected",
-            "Your vampiric body rejects pure water."
+            "It feels like sand in my throat, I can't drink this..."
         )
 
-        if localPlayer and HaloTextHelper and HaloTextHelper.addText then
-            pcall(HaloTextHelper.addText, localPlayer, msg, 100, 180, 255)
-        else
-            Vampirism.toastText = msg
-            Vampirism.toastAlpha = 1.0
+        if localPlayer then
+            if localPlayer.Say then
+                pcall(localPlayer.Say, localPlayer, msg)
+            end
+
+            if HaloTextHelper and HaloTextHelper.addText then
+                pcall(HaloTextHelper.addText, localPlayer, msg, 100, 180, 255)
+            else
+                Vampirism.toastText = msg
+                Vampirism.toastAlpha = 1.0
+            end
         end
         return
     end

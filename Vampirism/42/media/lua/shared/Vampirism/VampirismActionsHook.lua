@@ -61,22 +61,17 @@ local function PlayFoodRejectionEffects(character)
 end
 
 -- ============================================================
--- 1. BEBER AGUA DIRECTA DE GRIFOS / FUENTES / CHARCOS (ISTakeWaterAction)
+-- 1. BEBER AGUA DIRECTA DE GRIFOS / FUENTES / LAVABOS / CHARCOS (ISTakeWaterAction)
 -- ============================================================
-
-local old_ISTakeWaterAction_isValid = ISTakeWaterAction.isValid
-function ISTakeWaterAction:isValid()
-    if self.item == nil and Vampirism.BLOCK_WATER and Vampirism.HasVampireTrait and Vampirism.HasVampireTrait(self.character) then
-        return false
-    end
-    return old_ISTakeWaterAction_isValid(self)
-end
 
 local old_ISTakeWaterAction_start = ISTakeWaterAction.start
 function ISTakeWaterAction:start()
     if self.item == nil and Vampirism.BLOCK_WATER and Vampirism.HasVampireTrait and Vampirism.HasVampireTrait(self.character) then
+        local msg = (getText and getText("UI_Vampirism_WaterRejected")) or "It feels like sand in my throat, I can't drink this..."
+        if self.character and self.character.Say then
+            pcall(self.character.Say, self.character, msg)
+        end
         if self.character and HaloTextHelper and HaloTextHelper.addText then
-            local msg = (getText and getText("UI_Vampirism_WaterRejected")) or "Your vampiric body rejects pure water."
             pcall(HaloTextHelper.addText, self.character, msg, 100, 180, 255)
         end
         PlayWaterRejectionEffects(self.character)
@@ -88,6 +83,17 @@ function ISTakeWaterAction:start()
         return
     end
     old_ISTakeWaterAction_start(self)
+end
+
+local old_ISTakeWaterAction_update = ISTakeWaterAction.update
+function ISTakeWaterAction:update()
+    if self.item == nil and Vampirism.BLOCK_WATER and Vampirism.HasVampireTrait and Vampirism.HasVampireTrait(self.character) then
+        self:forceStop()
+        return
+    end
+    if old_ISTakeWaterAction_update then
+        old_ISTakeWaterAction_update(self)
+    end
 end
 
 local old_ISTakeWaterAction_transferFluid = ISTakeWaterAction.transferFluid
@@ -123,8 +129,11 @@ function ISDrinkFluidAction:start()
         end
 
         if not isBlood then
+            local msg = (getText and getText("UI_Vampirism_WaterRejected")) or "It feels like sand in my throat, I can't drink this..."
+            if self.character and self.character.Say then
+                pcall(self.character.Say, self.character, msg)
+            end
             if self.character and HaloTextHelper and HaloTextHelper.addText then
-                local msg = (getText and getText("UI_Vampirism_WaterRejected")) or "Your vampiric body rejects pure water."
                 pcall(HaloTextHelper.addText, self.character, msg, 100, 180, 255)
             end
             PlayWaterRejectionEffects(self.character)
@@ -171,8 +180,11 @@ function ISDrinkFromBottle:start()
         end
 
         if not isBlood then
+            local msg = (getText and getText("UI_Vampirism_WaterRejected")) or "It feels like sand in my throat, I can't drink this..."
+            if self.character and self.character.Say then
+                pcall(self.character.Say, self.character, msg)
+            end
             if self.character and HaloTextHelper and HaloTextHelper.addText then
-                local msg = (getText and getText("UI_Vampirism_WaterRejected")) or "Your vampiric body rejects pure water."
                 pcall(HaloTextHelper.addText, self.character, msg, 100, 180, 255)
             end
             PlayWaterRejectionEffects(self.character)
@@ -194,8 +206,11 @@ end
 local old_ISEatFoodAction_start = ISEatFoodAction.start
 function ISEatFoodAction:start()
     if Vampirism.HasVampireTrait and Vampirism.HasVampireTrait(self.character) then
+        local msg = (getText and getText("UI_Vampirism_FoodRejected")) or "Your body cannot digest mortal food."
+        if self.character and self.character.Say then
+            pcall(self.character.Say, self.character, msg)
+        end
         if self.character and HaloTextHelper and HaloTextHelper.addText then
-            local msg = (getText and getText("UI_Vampirism_FoodRejected")) or "Your body cannot digest mortal food."
             pcall(HaloTextHelper.addText, self.character, msg, 200, 100, 100)
         end
         PlayFoodRejectionEffects(self.character)
